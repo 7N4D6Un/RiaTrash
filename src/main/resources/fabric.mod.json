@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 1,
+	"id": "riatrash",
+	"version": "${version}",
+	"name": "RiaTrash",
+	"description": "Adds a trash button to the inventory screen on matching servers to open the server-side trash GUI.",
+	"authors": [
+		"FleTime"
+	],
+	"contact": {
+		"sources": "https://github.com/7N4D6Un/RiaTrash"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/riatrash/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"com.fletime.riatrash.RiaTrash"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
