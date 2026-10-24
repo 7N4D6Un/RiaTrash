@@ -1,11 +1,21 @@
 package com.fletime.riatrash;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.components.Tooltip;
@@ -16,12 +26,11 @@ import net.minecraft.resources.Identifier;
 
 public class RiaTrash implements ClientModInitializer {
 	public static final String MOD_ID = "riatrash";
-	private static final Map<String, String> SERVER_COMMANDS = Map.of(
-			"auto-zth.ria.red", "dispose",
-			"zth.ria.red", "dispose",
-			"zth.spare.ria.red", "dispose",
-			"124.222.156.11", "dispose",
-			"mc.hammer.moe", "trash");
+
+	private static final Map<String, String> DEFAULT_SERVERS = createDefaultServers();
+	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+
+	private static Map<String, String> serverCommands = DEFAULT_SERVERS;
 
 	private static final Identifier TRASH_SPRITE = Identifier.fromNamespaceAndPath(MOD_ID, "trash");
 	private static final int BUTTON_SIZE = 16;
@@ -32,6 +41,7 @@ public class RiaTrash implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
+		serverCommands = loadServers();
 		ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
 			if (!(screen instanceof InventoryScreen inventoryScreen)) {
 				return;
@@ -55,6 +65,43 @@ public class RiaTrash implements ClientModInitializer {
 		});
 	}
 
+	private static Map<String, String> createDefaultServers() {
+		Map<String, String> servers = new LinkedHashMap<>();
+		servers.put("auto-zth.ria.red", "dispose");
+		servers.put("zth.ria.red", "dispose");
+		servers.put("zth.spare.ria.red", "dispose");
+		servers.put("124.222.156.11", "dispose");
+		servers.put("mc.hammer.moe", "trash");
+		return servers;
+	}
+
+	private static Map<String, String> loadServers() {
+		Path path = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID + ".json");
+		if (Files.exists(path)) {
+			try {
+				JsonObject servers = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
+				Map<String, String> result = new LinkedHashMap<>();
+				for (String key : servers.keySet()) {
+					result.put(key, servers.get(key).getAsString());
+				}
+				return result;
+			} catch (IOException | RuntimeException ignored) {
+			}
+		}
+		writeDefaultConfig(path);
+		return DEFAULT_SERVERS;
+	}
+
+	private static void writeDefaultConfig(Path path) {
+		JsonObject servers = new JsonObject();
+		DEFAULT_SERVERS.forEach(servers::addProperty);
+		try {
+			Files.createDirectories(path.getParent());
+			Files.writeString(path, GSON.toJson(servers));
+		} catch (IOException ignored) {
+		}
+	}
+
 	private static String getTrashCommand(Minecraft client) {
 		if (client.getCurrentServer() == null) {
 			return null;
@@ -67,6 +114,6 @@ public class RiaTrash implements ClientModInitializer {
 		if (portIndex != -1) {
 			address = address.substring(0, portIndex);
 		}
-		return SERVER_COMMANDS.get(address.toLowerCase(Locale.ROOT));
+		return serverCommands.get(address.toLowerCase(Locale.ROOT));
 	}
 }
