@@ -1,6 +1,7 @@
 package com.fletime.riatrash;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -11,6 +12,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+
+import com.fletime.riatrash.mixin.AbstractContainerScreenAccessor;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -36,33 +39,44 @@ public class RiaTrash implements ClientModInitializer {
 	private static final int BUTTON_SIZE = 16;
 	private static final int BUTTON_OFFSET_X = 77;
 	private static final int BUTTON_OFFSET_Y = 43;
-	private static final int INVENTORY_WIDTH = 176;
 	private static final int INVENTORY_HEIGHT = 166;
+
+	private static WeakReference<ImageButton> trashButton = new WeakReference<>(null);
 
 	@Override
 	public void onInitializeClient() {
 		serverCommands = loadServers();
 		ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
 			if (!(screen instanceof InventoryScreen inventoryScreen)) {
+				trashButton.clear();
 				return;
 			}
 			String command = getTrashCommand(client);
 			if (command == null) {
+				trashButton.clear();
 				return;
 			}
-			int leftPos = (inventoryScreen.width - INVENTORY_WIDTH) / 2;
+			AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) inventoryScreen;
 			int topPos = (inventoryScreen.height - INVENTORY_HEIGHT) / 2;
-			ImageButton trashButton = new ImageButton(
-					leftPos + BUTTON_OFFSET_X,
+			ImageButton button = new ImageButton(
+					accessor.riatrash$getLeftPos() + BUTTON_OFFSET_X,
 					topPos + BUTTON_OFFSET_Y,
 					BUTTON_SIZE,
 					BUTTON_SIZE,
 					new WidgetSprites(TRASH_SPRITE),
-					button -> client.getConnection().sendCommand(command),
+					pressed -> client.getConnection().sendCommand(command),
 					Component.translatable("gui.riatrash.trash_button"));
-			trashButton.setTooltip(Tooltip.create(Component.translatable("gui.riatrash.trash_button")));
-			Screens.getWidgets(inventoryScreen).add(trashButton);
+			button.setTooltip(Tooltip.create(Component.translatable("gui.riatrash.trash_button")));
+			Screens.getWidgets(inventoryScreen).add(button);
+			trashButton = new WeakReference<>(button);
 		});
+	}
+
+	public static void repositionTrashButton(int leftPos) {
+		ImageButton button = trashButton.get();
+		if (button != null) {
+			button.setPosition(leftPos + BUTTON_OFFSET_X, button.getY());
+		}
 	}
 
 	private static Map<String, String> createDefaultServers() {
@@ -82,7 +96,7 @@ public class RiaTrash implements ClientModInitializer {
 				JsonObject servers = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
 				Map<String, String> result = new LinkedHashMap<>();
 				for (String key : servers.keySet()) {
-					result.put(key, servers.get(key).getAsString());
+					result.put(key.trim().toLowerCase(Locale.ROOT), servers.get(key).getAsString());
 				}
 				return result;
 			} catch (IOException | RuntimeException ignored) {

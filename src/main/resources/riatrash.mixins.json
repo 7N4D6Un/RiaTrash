@@ -1,0 +1,15 @@
+{
+	"required": true,
+	"package": "com.fletime.riatrash.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"AbstractContainerScreenAccessor",
+		"RecipeBookComponentMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}
